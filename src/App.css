@@ -72,6 +72,25 @@
   color: var(--text-h);
   outline: none;
 }
+
+.textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  outline: none;
+}
+.textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
 .field input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-bg);

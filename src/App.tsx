@@ -78,6 +78,7 @@ function App() {
   const [form, setForm] = useState<FormState>(DEFAULTS)
   const [signature, setSignature] = useState<Hex | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [combineInput, setCombineInput] = useState('')
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }))
@@ -178,6 +179,8 @@ function App() {
   }
 
   const canSwitch = !!parsed && parsed.chainId !== activeChainId && chains.some((c) => c.id === parsed.chainId)
+
+  const combined = useMemo(() => combineSignatures(combineInput), [combineInput])
 
   return (
     <main className="app">
@@ -347,6 +350,56 @@ function App() {
         {error && <pre className="error">{error}</pre>}
         {signature && (
           <SignatureBlock signature={signature} signer={address} parsed={parsed!} />
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Combine signatures for withdraw()</h2>
+        <p className="hint">
+          The contract expects <code>bytes signatures</code> as a concatenation of N signatures, each 65 bytes:{' '}
+          <code>r(32) || s(32) || v(1)</code>. Paste one signature per line (0x…).
+        </p>
+
+        <label className="field" style={{ marginTop: 12 }}>
+          <span className="label">Signatures (one per line)</span>
+          <textarea
+            className="textarea"
+            spellCheck={false}
+            placeholder={`0x…\n0x…\n0x…`}
+            value={combineInput}
+            onChange={(e) => setCombineInput(e.target.value)}
+          />
+          {!combined.ok && combined.error ? (
+            <span className="field-error">{combined.error}</span>
+          ) : (
+            <span className="field-hint">
+              Detected <strong>{combined.signatures.length}</strong> signature(s) · total{' '}
+              <strong>{combined.totalBytes}</strong> bytes
+            </span>
+          )}
+        </label>
+
+        <div className="actions" style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={() => combined.ok && navigator.clipboard.writeText(combined.concatenated)}
+            disabled={!combined.ok}
+          >
+            Copy concatenated bytes
+          </button>
+          <button
+            type="button"
+            onClick={() => signature && setCombineInput((t) => (t.trim() ? `${t.trim()}\n${signature}` : signature))}
+            disabled={!signature}
+          >
+            Append last signed
+          </button>
+        </div>
+
+        {combined.ok && (
+          <pre className="sig-value" style={{ marginTop: 12 }}>
+            {combined.concatenated}
+          </pre>
         )}
       </section>
 
@@ -560,4 +613,54 @@ function humanize(sec: number) {
 
 function chainName(chains: readonly { id: number; name: string }[], id: number) {
   return chains.find((c) => c.id === id)?.name ?? `chain ${id}`
+}
+
+function combineSignatures(input: string): {
+  ok: boolean
+  error?: string
+  signatures: Hex[]
+  concatenated: Hex
+  totalBytes: number
+} {
+  const parts = input
+    .split(/\r?\n|,|;/g)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const signatures: Hex[] = []
+  for (let i = 0; i < parts.length; i++) {
+    const s = parts[i]!
+    if (!s.startsWith('0x')) {
+      return {
+        ok: false,
+        error: `Line ${i + 1}: signature must start with 0x`,
+        signatures,
+        concatenated: '0x',
+        totalBytes: 0,
+      }
+    }
+    if (!/^0x[0-9a-fA-F]+$/.test(s)) {
+      return {
+        ok: false,
+        error: `Line ${i + 1}: signature must be hex`,
+        signatures,
+        concatenated: '0x',
+        totalBytes: 0,
+      }
+    }
+    if (s.length !== 132) {
+      return {
+        ok: false,
+        error: `Line ${i + 1}: expected 65-byte signature (132 chars incl 0x), got ${s.length}`,
+        signatures,
+        concatenated: '0x',
+        totalBytes: 0,
+      }
+    }
+    signatures.push(s as Hex)
+  }
+
+  const concatenated = (`0x${signatures.map((x) => x.slice(2)).join('')}` || '0x') as Hex
+  const totalBytes = signatures.length * 65
+  return { ok: true, signatures, concatenated, totalBytes }
 }
