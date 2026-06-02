@@ -255,6 +255,7 @@ function App() {
             placeholder="unique uint256"
             value={form.nonce}
             onChange={(v) => update('nonce', v)}
+            hint="Replay protection is per user: contract uses usedNonces[user][nonce]"
             error={validation.fieldErrors.nonce}
             trailing={
               <button

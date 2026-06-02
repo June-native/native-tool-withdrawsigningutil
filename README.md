@@ -49,6 +49,7 @@ wallets will not initialize (a warning is logged).
   `_hashTypedDataV4(...)` digest so you can sanity-check what your wallet
   will sign.
 - **Convenience helpers** — random uint256 nonce, "+1h" deadline.
+- **Per-user nonces** — `usedNonces[user][nonce]` on-chain; the same nonce can be used for different recipients.
 
 ## Files of interest
 
